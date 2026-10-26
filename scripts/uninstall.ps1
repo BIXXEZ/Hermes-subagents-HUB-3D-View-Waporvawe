@@ -19,6 +19,10 @@ Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
   Where-Object { $_.Name -match '^python' -and $_.CommandLine -like '*office_live.py*' -and $_.CommandLine -like "*$liveDir*" } |
   ForEach-Object { Write-Host "останавливаю фид (pid $($_.ProcessId))"; Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
+# ярлык «вход» из меню Пуск
+$lnk = Join-Path ([Environment]::GetFolderPath('Programs')) 'office_hermes.lnk'
+if (Test-Path $lnk) { Remove-Item $lnk -Force -ErrorAction SilentlyContinue; Write-Host "удалён ярлык: $lnk" }
+
 $vbs = Join-Path $StartupDir 'hermes-office.vbs'
 if (Test-Path $vbs) { Remove-Item $vbs -Force; Write-Host "удалён автозапуск: $vbs" }
 

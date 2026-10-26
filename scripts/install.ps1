@@ -25,6 +25,7 @@ param(
   [switch]$NoAutostart,
   [switch]$NoStart,
   [switch]$Open,
+  [switch]$NoShortcut,
   [switch]$Quiet
 )
 
@@ -113,6 +114,52 @@ if ($NoAutostart) {
   Say "  автозапуск  : $vbs"
 }
 
+# --- 4b. вход из Windows: ярлык, который поднимает фид и открывает офис
+$openVbs = Join-Path $liveDir 'open-office.vbs'
+$openLines = @(
+  'Set sh = CreateObject("WScript.Shell")',
+  'url = "http://127.0.0.1:PORT_PLACEHOLDER/"',
+  'ok = False',
+  'On Error Resume Next',
+  'Set http = CreateObject("MSXML2.ServerXMLHTTP.6.0")',
+  'http.setTimeouts 600, 600, 900, 900',
+  'http.open "GET", url & "health", False',
+  'http.send',
+  'If Err.Number = 0 Then',
+  '  If http.status = 200 Then ok = True',
+  'End If',
+  'Err.Clear',
+  'On Error GoTo 0',
+  'If Not ok Then',
+  '  sh.Run "wscript.exe ""START_PLACEHOLDER""", 0, False',
+  '  WScript.Sleep 1800',
+  'End If',
+  'sh.Run url, 1, False'
+) -join "`r`n"
+# .Replace (не -replace): путь с обратными слэшами должен попасть в VBS буквально
+$openBody = $openLines.Replace('PORT_PLACEHOLDER', "$Port").Replace('START_PLACEHOLDER', $runVbs)
+[System.IO.File]::WriteAllText($openVbs, $openBody + "`r`n", [System.Text.Encoding]::ASCII)
+Say "  вход (Windows): $openVbs"
+
+$lnk = Join-Path ([Environment]::GetFolderPath('Programs')) 'office_hermes.lnk'
+if ($NoShortcut) {
+  Say "  ярлык Пуск  : пропущен (-NoShortcut)"
+} else {
+  try {
+    $sh = New-Object -ComObject WScript.Shell
+    $sc = $sh.CreateShortcut($lnk)
+    $sc.TargetPath       = "$env:WINDIR\system32\wscript.exe"
+    $sc.Arguments        = '"' + $openVbs + '"'
+    $sc.WorkingDirectory = $liveDir
+    $sc.WindowStyle      = 7
+    $sc.Description      = 'office_hermes - open subagent office'
+    $sc.Save()
+    Say "  ярлык Пуск  : $lnk"
+  } catch {
+    Write-Host "  ! ярлык не создан: $($_.Exception.Message)" -ForegroundColor Yellow
+  }
+}
+
 # --- 5. перезапуск фида
 # только свои процессы — по пути к этому каталогу, чужие фиды не трогаем
 Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
@@ -158,5 +205,6 @@ Say ""
 Say "Готово. Дальше в Hermes:"
 Say "  1) Ctrl+K → «Reload desktop plugins»"
 Say "  2) справа появится панель office_hermes (или чип «office_hermes» в статусбаре)"
+Say "Вход из Windows: Пуск -> office_hermes (поднимет фид и откроет офис)"
 Say "Адрес офиса в браузере: http://127.0.0.1:$Port/"
 if (-not $NoAutostart) { Say "Автозапуск при входе в Windows: $vbs" }

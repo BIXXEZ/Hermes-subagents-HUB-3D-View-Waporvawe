@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>ГЕРМЕС · ОФИС — VAPOR MONITOR</title>
+<style>
+  :root{
+    --bg:#06081a; --ink:#c9b8ff; --ink-dim:#8d7fc4; --violet:#7629d9;
+    --magenta:#ff45b8; --cyan:#72d5ff; --panel:rgba(9,12,28,.62); --line:rgba(114,213,255,.28);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--bg);overflow:hidden;
+    font-family:"Courier New",ui-monospace,monospace;color:var(--ink)}
+  #view{position:fixed;inset:0}
+  canvas{display:block;width:100%;height:100%;image-rendering:pixelated}
+  .hud{position:fixed;pointer-events:none;font-size:11px;line-height:1.45;
+       letter-spacing:.04em;text-transform:uppercase}
+  .panel{background:var(--panel);border:1px solid var(--line);padding:8px 10px;
+         backdrop-filter:blur(1px);box-shadow:0 0 0 1px rgba(6,8,26,.9) inset}
+  .panel h2{margin:0 0 6px;font-size:10px;letter-spacing:.22em;color:var(--cyan);font-weight:400;
+            border-bottom:1px solid rgba(114,213,255,.18);padding-bottom:4px}
+  .row{display:flex;justify-content:space-between;gap:10px;white-space:nowrap}
+  .dim{color:var(--ink-dim)}
+  .sel{color:var(--magenta)}
+  .tl{left:16px;top:14px;width:236px}
+  .tr{right:16px;top:14px;width:224px;text-align:right}
+  .bl{left:16px;bottom:14px;width:262px}
+  .br{right:16px;bottom:14px;width:250px}
+  #list{margin-top:4px}
+  #list .row{padding:1px 0}
+  #list .row.on{color:var(--magenta);background:linear-gradient(90deg,rgba(255,69,184,.16),transparent)}
+  #list .row.on::before{content:"› ";color:var(--magenta)}
+  #list .row::before{content:"  "}
+  .bar{height:6px;border:1px solid var(--line);margin:5px 0 6px;position:relative;overflow:hidden}
+  .bar i{position:absolute;inset:0;width:0;background:linear-gradient(90deg,var(--cyan),var(--magenta))}
+  #spark{width:100%;height:34px;display:block;margin-top:4px;
+         border-top:1px solid rgba(114,213,255,.16);border-bottom:1px solid rgba(114,213,255,.16)}
+  #log{height:66px;overflow:hidden;margin-top:5px;color:var(--ink-dim)}
+  #log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #card{left:0;top:0;width:186px;border-color:rgba(255,69,184,.45);display:none}
+  #card h2{color:var(--magenta);border-bottom-color:rgba(255,69,184,.25)}
+  #status{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);text-align:center;
+    font-size:12px;letter-spacing:.2em;color:var(--ink-dim);text-transform:uppercase}
+  #status b{color:var(--magenta);font-weight:400}
+  #hint{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);font-size:10px;
+    letter-spacing:.18em;color:rgba(141,127,196,.75);text-transform:uppercase}
+  #board{position:absolute;top:16px;left:50%;transform:translateX(-50%);min-width:430px;
+         max-width:min(58vw,760px);text-align:center;padding:7px 16px 8px}
+  #board .bcap{font-size:8px;letter-spacing:.3em;color:var(--ink-dim)}
+  #btitle{font-size:15px;letter-spacing:.10em;color:#ede6ff;margin:3px 0 2px;
+          white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 0 8px rgba(255,69,184,.55)}
+  #bsub{font-size:9px;letter-spacing:.16em;color:var(--ink-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .logbox{margin-top:6px;padding-top:5px;border-top:1px dashed var(--line);max-height:96px;overflow:hidden;
+          font-size:9px;line-height:1.5;color:var(--ink-dim)}
+  .logbox div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .logbox b{color:var(--cyan);font-weight:400}
+  #list .wl{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+  #list .sd{margin-right:4px;font-style:normal}
+  #list .sd.running{color:var(--cyan)}
+  #list .sd.idle{color:var(--magenta)}
+  #list .sd.done{color:var(--ink-dim);opacity:.6}
+  /* ── пульт: режим воркеров, палитра, поворот столов ── */
+  #ctl{left:50%;bottom:36px;transform:translateX(-50%);display:flex;align-items:center;gap:14px;
+       pointer-events:auto;background:var(--panel);border:1px solid var(--line);padding:5px 10px}
+  #ctl .seg{display:flex;border:1px solid var(--line)}
+  #ctl .seg button{background:transparent;border:0;color:var(--ink-dim);font:inherit;font-size:9px;
+       letter-spacing:.14em;padding:3px 8px;cursor:pointer;text-transform:uppercase}
+  #ctl .seg button.on{background:color-mix(in srgb,var(--magenta) 24%,transparent);color:var(--ink)}
+  #ctl .lbl{font-size:8px;letter-spacing:.18em;color:var(--ink-dim)}
+  #ctl .pl{display:flex;align-items:center;gap:5px}
+  #ctl input[type=color]{width:20px;height:15px;padding:0;border:1px solid var(--line);
+       background:transparent;cursor:pointer}
+  #ctl button.act{background:transparent;border:1px solid var(--line);color:var(--ink);
+       font:inherit;font-size:9px;letter-spacing:.12em;padding:3px 8px;cursor:pointer;text-transform:uppercase}
+  #ctl button.act:hover{background:color-mix(in srgb,var(--magenta) 20%,transparent)}
+  #procs div{font-size:9px;line-height:1.35;color:var(--ink-dim)}
+  #procs b{color:var(--cyan);font-weight:400}
+</style>
+</head>
+<body>
+<div id="view"></div>
+
+<div id="status">Загрузка <b id="pct">0%</b></div>
+
+<div class="hud panel tl">
+  <h2>HERMES AI</h2>
+  <div class="row dim"><span>&gt; scanning workforce…</span><span id="wcount">0</span></div>
+  <div class="row dim"><span>&gt; status</span><span id="wstate">OFFLINE</span></div>
+  <div class="row" style="margin-top:5px"><span class="dim">SELECT EMPLOYEE</span><span class="dim">LOAD</span></div>
+  <div id="list"></div>
+</div>
+
+<div class="hud panel tr">
+  <h2>LIVE OFFICE CAM 01</h2>
+  <div class="row"><span class="dim">TOTAL EFFICIENCY</span><span id="eff">—</span></div>
+  <div class="bar"><i id="effbar"></i></div>
+  <div class="row dim"><span>FOCUS</span><span id="mfocus">—</span></div>
+  <div class="row dim"><span>PRODUCTIVITY</span><span id="mprod">—</span></div>
+  <div class="row dim"><span>IDLE</span><span id="midle">—</span></div>
+  <div class="row dim" style="margin-top:5px"><span id="clock">--:--:--</span><span>UTC+3</span></div>
+</div>
+
+<div class="hud panel bl">
+  <h2>ACTIVITY (ALL)</h2>
+  <canvas id="spark" width="240" height="34"></canvas>
+  <div class="row dim"><span>CPU</span><span id="mcpu">—</span></div>
+  <div class="row dim"><span>RAM</span><span id="mram">—</span></div>
+  <div class="bar"><i id="rambar" style="background:linear-gradient(90deg,var(--cyan),var(--magenta))"></i></div>
+  <div id="procs"></div>
+  <div id="log"></div>
+</div>
+
+
+<div class="hud panel" id="board">
+  <div class="bcap">// АКТИВНЫЙ ЧАТ</div>
+  <div id="btitle">НЕТ ДАННЫХ</div>
+  <div id="bsub">ожидание связи с hermes…</div>
+</div>
+
+<div class="hud panel br">
+  <h2>EMPLOYEE VIEW</h2>
+  <div class="row dim"><span>ID</span><span id="eid">—</span></div>
+  <div class="row dim"><span>STATUS</span><span id="estate">—</span></div>
+  <div class="row dim"><span>EFF</span><span id="eeff">—</span></div>
+  <div class="row dim"><span>CTX</span><span id="ectx">—</span></div>
+</div>
+
+<div class="hud panel" id="card">
+  <h2 id="cardname">WORKER</h2>
+  <div class="row dim"><span>TASK</span><span id="ctask">—</span></div>
+  <div class="row dim"><span>STATUS</span><span id="cstate">—</span></div>
+  <div class="row dim"><span>EFF</span><span id="ceff">—</span></div>
+  <div class="row dim"><span>MSGS</span><span id="cmsgs">—</span></div>
+  <div class="row dim"><span>TOOLS</span><span id="ctools">—</span></div>
+  <div class="logbox" id="clog"></div>
+</div>
+
+<div class="hud" id="ctl">
+  <div class="seg" id="wmode">
+    <button data-m="active" class="on">активные</button>
+    <button data-m="all">все</button>
+  </div>
+  <div class="pl">
+    <span class="lbl">base</span><input type="color" id="cBg" value="#06081a">
+    <span class="lbl">ink</span><input type="color" id="cInk" value="#c9b8ff">
+    <span class="lbl">acc</span><input type="color" id="cAcc" value="#7629d9">
+    <button class="act" id="cReset" title="вернуть исходную схему">↺</button>
+  </div>
+  <button class="act" id="rot" title="повернуть столы по часовой">↻ столы</button>
+</div>
+
+<div id="hint">КЛИК — ВЫБРАТЬ · ESC — СНЯТЬ · МЫШЬ — ОРБИТА</div>
+
+<script type="importmap">
+{ "imports": {
+    "three": "./three-libs/three.module.js",
+    "three/addons/": "./three-libs/"
+} }
+</script>
+<script type="module">
+addEventListener('error', e => { beacon('err', (e.message||'')); window.__err = (e.message||'') + ' @' + (e.filename||'') + ':' + (e.lineno||''); console.error('PAGE ERROR', window.__err); });
+// диагностика: докладываем серверу, на какой стадии страница внутри iframe
+function beacon(stage, extra){
+  try { fetch('/beacon?stage=' + stage + (extra ? '&m=' + encodeURIComponent(String(extra).slice(0,140)) : ''), { cache:'no-store' }); } catch(_){}
+}
+beacon('boot');
+
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const Q = new URLSearchParams(location.search);
+const GLB = Q.get('glb') || './hermes-office-evening.glb';
+const API = window.HERMES_OFFICE_API || (Q.get('live') ? '/state' : null);
+let LIVE_SID = Q.get('sid') || '';
+let LIVE_BUSY = null;
+
+// ---------------------------------------------------------------- renderer
+const host = document.getElementById('view');
+const renderer = new THREE.WebGLRenderer({ antialias:false, alpha:false, powerPreference:'high-performance' });
+const LOW = 0.52;                                   // chunky pixel grid
+renderer.setPixelRatio(1);
+renderer.setSize(Math.round(innerWidth*LOW), Math.round(innerHeight*LOW), false);
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+host.appendChild(renderer.domElement);
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x06081a);
+scene.fog = new THREE.FogExp2(0x06081a, 0.018);
+
+// Blender (x,y,z) -> glTF (x,z,-y).  Камера из эталона: pos (25.526,-11.94,18.389), target (5.7,3.55,2.05)
+const TARGET = new THREE.Vector3(6.25, 2.0, -4.25);
+const CAM_DIR = new THREE.Vector3(
+  25.526 - TARGET.x, 18.389 - TARGET.y, 11.94 - TARGET.z
+).normalize();                                       // от цели к камере: +X +Y +Z
+const DIST = 46;
+const FRUSTUM = 16.0;
+
+const camera = new THREE.OrthographicCamera(-FRUSTUM/2, FRUSTUM/2, FRUSTUM/2, -FRUSTUM/2, 0.1, 400);
+camera.position.copy(TARGET).addScaledVector(CAM_DIR, DIST);
+camera.lookAt(TARGET);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.target.copy(TARGET);
+controls.enableDamping = true;
+controls.dampingFactor = 0.07;
+controls.minZoom = 0.4; controls.maxZoom = 3;
+controls.maxPolarAngle = Math.PI*0.49;
+controls.update();
+
+scene.add(new THREE.AmbientLight(0x8b74d6, 0.55));
+const hemi = new THREE.HemisphereLight(0xc9b8ff, 0x141033, 0.65);
+hemi.position.set(0,1,0); scene.add(hemi);
+const key = new THREE.DirectionalLight(0xcfc0ff, 0.95);      // верхний ключевой
+key.position.set(9, 16, 12); scene.add(key);
+const fillL = new THREE.DirectionalLight(0x9a7bff, 0.55);    // заливка слева
+fillL.position.set(-14, 6, 2); scene.add(fillL);
+const rimB = new THREE.DirectionalLight(0xff45b8, 0.45);    // магента сзади
+rimB.position.set(4, 5, -14); scene.add(rimB);
+
+// ---------------------------------------------------------------- pixel palette pass
+const rtScene = new THREE.WebGLRenderTarget(1,1, {
+  type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter
+});
+const rtBloomA = new THREE.WebGLRenderTarget(1,1, { type: THREE.HalfFloatType });
+const rtBloomB = new THREE.WebGLRenderTarget(1,1, { type: THREE.HalfFloatType });
+
+const quadScene = new THREE.Scene();
+const quadCam = new THREE.OrthographicCamera(-1,1,1,-1,0,1);
+const quadGeo = new THREE.PlaneGeometry(2,2);
+
+const brightMat = new THREE.ShaderMaterial({
+  uniforms:{ tDiffuse:{value:null}, threshold:{value:0.62} },
+  vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }`,
+  fragmentShader:`
+    varying vec2 vUv; uniform sampler2D tDiffuse; uniform float threshold;
+    void main(){
+      vec3 c = texture2D(tDiffuse, vUv).rgb;
+      float l = max(max(c.r,c.g),c.b);
+      float k = smoothstep(threshold, threshold+0.25, l);
+      gl_FragColor = vec4(c*k, 1.0);
+    }`, depthTest:false, depthWrite:false
+});
+
+const blurMat = new THREE.ShaderMaterial({
+  uniforms:{ tDiffuse:{value:null}, dir:{value:new THREE.Vector2(1,0)}, res:{value:new THREE.Vector2(1,1)} },
+  vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }`,
+  fragmentShader:`
+    varying vec2 vUv; uniform sampler2D tDiffuse; uniform vec2 dir; uniform vec2 res;
+    void main(){
+      vec2 px = dir/res;
+      vec3 sum = vec3(0.0);
+      sum += texture2D(tDiffuse, vUv - px*3.0).rgb*0.10;
+      sum += texture2D(tDiffuse, vUv - px*2.0).rgb*0.16;
+      sum += texture2D(tDiffuse, vUv - px*1.0).rgb*0.21;
+      sum += texture2D(tDiffuse, vUv).rgb*0.26;
+      sum += texture2D(tDiffuse, vUv + px*1.0).rgb*0.21;
+      sum += texture2D(tDiffuse, vUv + px*2.0).rgb*0.16;
+      sum += texture2D(tDiffuse, vUv + px*3.0).rgb*0.10;
+      gl_FragColor = vec4(sum, 1.0);
+    }`, depthTest:false, depthWrite:false
+});
+
+// 8x8 ordered-dither matrix as a texture (надёжнее, чем 64-элементный массив в GLSL)
+const BAYER8 = [
+   0,32, 8,40, 2,34,10,42,
+  48,16,56,24,50,18,58,26,
+  12,44, 4,36,14,46, 6,38,
+  60,28,52,20,62,30,54,22,
+   3,35,11,43, 1,33, 9,41,
+  51,19,59,27,49,17,57,25,
+  15,47, 7,39,13,45, 5,37,
+  63,31,55,23,61,29,53,21];
+const bayerTex = new THREE.DataTexture(new Uint8Array(BAYER8.map(v => Math.round(v/64*255))), 8, 8,
+                                       THREE.RedFormat, THREE.UnsignedByteType);
+bayerTex.magFilter = bayerTex.minFilter = THREE.NearestFilter;
+bayerTex.wrapS = bayerTex.wrapT = THREE.RepeatWrapping;
+bayerTex.needsUpdate = true;
+
+const compMat = new THREE.ShaderMaterial({
+  uniforms:{
+    tBayer:{value:bayerTex}, tScene:{value:null}, tBloom:{value:null}, time:{value:0}, glitch:{value:0},
+    res:{value:new THREE.Vector2(1,1)},
+    uBg:{value:new THREE.Vector3(0.024,0.031,0.102)}, uInk:{value:new THREE.Vector3(0.788,0.722,1.0)},
+    uAcc:{value:new THREE.Vector3(0.463,0.161,0.851)}
+  },
+  vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=vec4(position.xy,0.,1.); }`,
+  fragmentShader:`
+    precision highp float;
+    varying vec2 vUv;
+    uniform sampler2D tScene, tBloom;
+    uniform float time, glitch;
+    uniform sampler2D tBayer;
+    uniform vec2 res;
+    uniform vec3 uBg, uInk, uAcc;
+
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7)))*43758.5453); }
+
+    void main(){
+      vec2 uv = vUv;
+
+      // ---- horizontal glitch tearing (rare, peripheral)
+      float band = floor(uv.y*res.y/6.0);
+      float gn = hash(vec2(band, floor(time*7.0)));
+      float tear = step(0.982, gn) * glitch;
+      uv.x += tear * (hash(vec2(band, 3.0)) - 0.5) * 0.06;
+
+      vec3 sceneC = texture2D(tScene, uv).rgb;
+      vec3 bloomC = texture2D(tBloom, uv).rgb;
+      vec3 col = (sceneC + bloomC * 0.32) * 1.55;      // exposure
+
+      // filmic roll-off, then perceptual gamma (сцена рендерится в linear RT)
+      col = vec3(1.0) - exp(-col * 1.15);
+      float L = dot(col, vec3(0.2126, 0.7152, 0.0722));
+      L = pow(clamp(L, 0.0, 1.0), 1.0/2.2);
+      L = clamp((L - 0.02) / 0.88, 0.0, 1.0);
+      L = mix(L, L*L*(3.0 - 2.0*L), 0.45);                       // S-кривая: силуэты отрываются от пола
+
+      // ---- 5-tone ordered dither, flat palette (дизеринг, а не градиент)
+      float b = texture2D(tBayer, gl_FragCoord.xy/8.0).r;
+      float idx = clamp(floor(L*5.0 + b), 0.0, 4.0);
+
+      // палитра строится из ТРЁХ цветов: base (тьма), accent (середина), ink (свет)
+      vec3 t0 = uBg * 0.55;
+      vec3 t1 = mix(uBg, uAcc, 0.32);
+      vec3 t2 = mix(uBg, uAcc, 0.66);
+      vec3 t3 = mix(uAcc, uInk, 0.20);
+      vec3 t4 = uInk;
+      vec3 pal = idx < 0.5 ? t0 : idx < 1.5 ? t1 : idx < 2.5 ? t2 : idx < 3.5 ? t3 : t4;
+
+      // чуть сохраняем цвет источника в самых светлых тонах (лампы/экраны)
+      float warm = clamp(col.r - col.b*0.6, 0.0, 1.0);
+      pal = mix(pal, vec3(1.0,0.86,0.74), warm * 0.35 * step(3.0, idx));
+
+      col = pal;
+
+      // ---- CRT scanlines
+      float scan = 0.86 + 0.14*sin(gl_FragCoord.y*3.14159);
+      col *= scan;
+
+      // ---- edge dissolve: walls and base crumble into pixel dust
+      vec2 d = min(vUv, 1.0-vUv);
+      float inner = smoothstep(0.0, 0.09, min(d.x, d.y));   // 0 у края, 1 в кадре
+      float n = hash(floor(gl_FragCoord.xy/3.0) + floor(time*2.0));
+      float dust = mix(step(0.80, n), 1.0, inner);          // распад только по краям
+      col *= dust;
+
+      // ---- sparse data fragments in the periphery
+      float frag = step(0.9965, hash(floor(gl_FragCoord.xy/vec2(9.0,3.0)) + floor(time*4.0)));
+      col += frag * vec3(0.35,0.05,0.45) * (1.0-inner);
+
+      // ---- vignette
+      vec2 v = vUv - 0.5;
+      col *= 1.0 - 0.55*dot(v,v);
+
+      // ---- grain
+      col += (hash(gl_FragCoord.xy + time) - 0.5) * 0.012;
+
+      gl_FragColor = vec4(col, 1.0);
+    }`, depthTest:false, depthWrite:false
+});
+
+const brightQuad = new THREE.Mesh(quadGeo, brightMat);
+const blurQuad = new THREE.Mesh(quadGeo, blurMat);
+const compQuad = new THREE.Mesh(quadGeo, compMat);
+quadScene.add(compQuad);
+
+function drawPass(mat, target){
+  quadScene.remove(blurQuad); quadScene.remove(compQuad); quadScene.remove(brightQuad);
+  quadScene.add(new THREE.Mesh(quadGeo, mat));
+  renderer.setRenderTarget(target);
+  renderer.render(quadScene, quadCam);
+  renderer.setRenderTarget(null);
+  quadScene.clear();
+}
+
+
+// кадрирование по содержимому: угол фиксирован, меняются только центр и масштаб
+const BASE_TARGET = new THREE.Vector3(6.25, 2.0, -4.25);
+const PROBE = new THREE.Object3D();
+PROBE.position.copy(BASE_TARGET).addScaledVector(CAM_DIR, DIST);
+PROBE.lookAt(BASE_TARGET);
+PROBE.updateMatrixWorld(true);
+const PROBE_INV = PROBE.matrixWorld.clone().invert();
+const PROBE_RIGHT = new THREE.Vector3().setFromMatrixColumn(PROBE.matrixWorld, 0).normalize();
+const PROBE_UP = new THREE.Vector3().setFromMatrixColumn(PROBE.matrixWorld, 1).normalize();
+
+function frameToContent(margin = 1.22){
+  // кадрируем по РЕАЛЬНОМУ силуэту (процентили вершин), в ФИКСИРОВАННОЙ системе камеры —
+  // функция идемпотентна: повторный вызов даёт тот же кадр
+  const v = new THREE.Vector3();
+  const xs = [], ys = [];
+  scene.traverse(o => {
+    if (!o.isMesh || !o.visible) return;
+    if (o === watcher) return;                                   // бюст за кадром справа
+    if (o.material && o.material.blending === THREE.AdditiveBlending) return;
+    const pos = o.geometry && o.geometry.attributes && o.geometry.attributes.position;
+    if (!pos) return;
+    const stride = Math.max(1, Math.floor(pos.count / 1500));
+    o.updateWorldMatrix(true, false);
+    for (let i = 0; i < pos.count; i += stride){
+      v.fromBufferAttribute(pos, i).applyMatrix4(o.matrixWorld).applyMatrix4(PROBE_INV);
+      xs.push(v.x); ys.push(v.y);
+    }
+  });
+  if (!xs.length) return;
+  xs.sort((a,b)=>a-b); ys.sort((a,b)=>a-b);
+  const q = (arr, t) => arr[Math.min(arr.length-1, Math.max(0, Math.round(t*(arr.length-1))))];
+  const x0 = q(xs,0.004), x1 = q(xs,0.996), y0 = q(ys,0.004), y1 = q(ys,0.996);
+  const cx = (x0+x1)/2, cy = (y0+y1)/2, ex = x1-x0, ey = y1-y0;
+  const aspect = innerWidth / innerHeight;
+  const needV = Math.max(ey, ex / aspect) * margin;
+
+  controls.target.copy(BASE_TARGET).addScaledVector(PROBE_RIGHT, cx).addScaledVector(PROBE_UP, cy);
+  camera.position.copy(controls.target).addScaledVector(CAM_DIR, DIST);
+  camera.quaternion.copy(PROBE.quaternion);
+
+  state.needV = needV;
+  applyFrustum();
+  controls.update();
+  console.log('[office] framed. needV', needV.toFixed(2), 'centre', cx.toFixed(2), cy.toFixed(2), 'ext', ex.toFixed(1), ey.toFixed(1));
+}
+
+function applyFrustum(){
+  const aspect = innerWidth / innerHeight;
+  const needV = state.needV || FRUSTUM;
+  camera.top = needV/2; camera.bottom = -needV/2;
+  camera.left = -needV*aspect/2; camera.right = needV*aspect/2;
+  camera.updateProjectionMatrix();
+}
+
+// ---------------------------------------------------------------- state
+const state = {
+  workers: [],            // {id,label,status,obj,light,quad,marker,index}
+  selected: null,
+  pending: null,
+  template: null,
+  grid: null,             // {xs:[], zs:[], y:0}
+  selectCb: null,
+  started: Date.now(),
+  mode: 'active',         // active | all — кого показывать за столами
+  poolActive: [], poolAll: [],
+  ringAngle: 0,
+  ringCenter: null,
+  live: null
+};
+
+const W = () => renderer.domElement.width;
+const H = () => renderer.domElement.height;
+
+// ---------------------------------------------------------------- load scene
+const loader = new GLTFLoader();
+let room = null, watcher = null, workerTemplate = null, baseWorkers = [];
+
+const onGltf = (gltf) => {
+  room = gltf.scene;
+  room.traverse(o => {
+    if (o.isMesh){
+      o.castShadow = false; o.receiveShadow = false;
+      if (o.name === 'watcher_bust') watcher = o;
+      if (/^worker_\d+$/.test(o.name)) baseWorkers.push(o);
+    }
+  });
+  // материалы в GLB — тёмный металл под Cycles; в three.js он чёрный. Поднимаем.
+  const seen = new Set();
+  room.traverse(o => {
+    if (!o.isMesh) return;
+    const mats = Array.isArray(o.material) ? o.material : [o.material];
+    o.material = (Array.isArray(o.material) ? mats : mats[0]);
+    mats.forEach(m => {
+      if (!m || seen.has(m.uuid)) return;
+      seen.add(m.uuid);
+      const em = m.emissive ? m.emissive.getHex() : 0;
+      const ei = m.emissiveIntensity ?? 1;
+      if (em !== 0 && ei > 0.05) { m.emissiveIntensity = Math.max(0.9, ei); return; }
+      if (m.color) m.color.multiplyScalar(1.45);
+      if (m.metalness !== undefined) m.metalness = Math.min(m.metalness, 0.2);
+      if (m.roughness !== undefined) m.roughness = Math.max(0.5, m.roughness);
+      m.envMapIntensity = 0.6;
+      m.needsUpdate = true;
+    });
+  });
+
+  baseWorkers.sort((a,b) => a.name.localeCompare(b.name));
+  if (baseWorkers.length) workerTemplate = baseWorkers[0];
+  scene.add(room);
+
+  // grid из реальных МИРОВЫХ позиций воркеров (меш может висеть под пустышкой)
+  const wp = new THREE.Vector3();
+  const wps = baseWorkers.map(o => { o.getWorldPosition(wp); return wp.clone(); });
+  state.baseY = wps.length ? +wps[0].y.toFixed(3) : 0;
+  const xs = [...new Set(wps.map(v => +v.x.toFixed(2)))].sort((a,b)=>a-b);
+  const zs = [...new Set(wps.map(v => +v.z.toFixed(2)))].sort((a,b)=>a-b);
+  state.grid = { xs, zs, step:{x: xs.length>1 ? xs[1]-xs[0] : 4.6, z: zs.length>1 ? zs[1]-zs[0] : -3.0 } };
+
+  // границы, внутри которых можно ставить дополнительные места (комната без стен)
+  const rb = new THREE.Box3();
+  room.traverse(o => { if (o.isMesh && o !== watcher) rb.expandByObject(o); });
+  state.bounds = { x0: rb.min.x + 1.9, x1: rb.max.x - 1.9, z0: rb.min.z + 1.3, z1: rb.max.z - 1.3 };
+  console.log('[office] room bounds', JSON.stringify(state.bounds));
+
+  // спрятать всё сверх шаблона; воркеры собраны из клонов
+  baseWorkers.forEach((o,i) => { o.visible = false; });
+  if (workerTemplate) workerTemplate.visible = false;
+
+  const list = state.pending || demoWorkers(baseWorkers.length || 6);
+  setWorkers(list);
+  frameToContent();
+  document.getElementById('status').style.display = 'none';
+  window.__ready = true; beacon('ready');
+  console.log('[office] ready. base workers:', baseWorkers.length, 'grid:', JSON.stringify(state.grid));
+};
+
+const onProgress = (ev) => {
+  if (ev.total) document.getElementById('pct').textContent = Math.round(ev.loaded/ev.total*100) + '%';
+};
+
+const onLoadError = (err) => {
+  console.error('[office] GLB load failed', err);
+  document.getElementById('status').innerHTML =
+    'GLB не загрузился<br><br><b>открой через «Открыть офис.bat»</b><br>file:// не отдаёт 48 МБ модели';
+};
+
+// соло-режим: модель вшита в файл как base64, тогда сеть не нужна вообще
+const EMBED = window.OFFICE_GLB_B64;
+if (EMBED){
+  try {
+    const bin = Uint8Array.from(atob(EMBED), c => c.charCodeAt(0));
+    loader.parse(bin.buffer, '', onGltf, onLoadError);
+  } catch (e) { onLoadError(e); }
+} else {
+  loader.load(GLB, onGltf, onProgress, onLoadError);
+}
+
+// ---------------------------------------------------------------- workers
+const SCREEN_OFF = new THREE.Vector3(0, 1.10, -0.10);   // экран CRT, glTF-оси (над корпусом)
+
+function markerTexture(){
+  const s = 128, c = document.createElement('canvas');
+  c.width = c.height = s;
+  const g = c.getContext('2d');
+  g.clearRect(0,0,s,s);
+  g.strokeStyle = '#ffffff'; g.lineWidth = 7;
+  g.strokeRect(10,10,s-20,s-20);
+  g.strokeStyle = 'rgba(255,255,255,.45)'; g.lineWidth = 3;
+  g.strokeRect(2,2,s-4,s-4);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  return t;
+}
+const MARKER_TEX = markerTexture();
+
+function screenTexture(){
+  const w = 64, h = 48, c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  const g = c.getContext('2d');
+  g.fillStyle = '#0a0a24'; g.fillRect(0,0,w,h);
+  g.fillStyle = '#e9e0ff';
+  for (let i = 0; i < 9; i++){
+    const y = 6 + i*4.6, len = 8 + Math.random()*40;
+    g.fillRect(4, y, len, 1.6);
+  }
+  g.fillStyle = '#ff45b8'; g.fillRect(4, h-7, 22, 2);
+  g.fillStyle = '#72d5ff'; g.fillRect(30, h-7, 10, 2);
+  const t = new THREE.CanvasTexture(c);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.magFilter = THREE.NearestFilter;
+  return t;
+}
+const SCREEN_TEX = screenTexture();
+
+function addScreenFX(obj){
+  const light = new THREE.PointLight(0xa98bff, 3.0, 3.2, 2);
+  light.position.copy(SCREEN_OFF);
+  obj.add(light);
+
+  const q = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.40, 0.30),
+    new THREE.MeshBasicMaterial({ map:SCREEN_TEX, transparent:true, opacity:0.95,
+                                  blending:THREE.AdditiveBlending, depthWrite:false,
+                                  side:THREE.DoubleSide })
+  );
+  q.position.copy(SCREEN_OFF).add(new THREE.Vector3(0,0,0.02));
+  q.userData.billboard = true;            // всегда к камере — экран читается с любого угла
+  obj.add(q);
+  return { light, quad:q };
+}
+
+function addMarker(obj){
+  const m = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.92,0.92),
+    new THREE.MeshBasicMaterial({ map:MARKER_TEX, transparent:true, opacity:0.55, color:0xffb0e6,
+      depthWrite:false, blending:THREE.AdditiveBlending })
+  );
+  m.position.set(0, 2.15, 0);
+  obj.add(m);
+  return m;
+}
+
+function addCube(obj){
+  // кубик над головой: каркас + светящееся ядро; крутится и мигает, пока агент работает
+  const g = new THREE.Group();
+  const box = new THREE.BoxGeometry(0.30, 0.30, 0.30);
+  const edges = new THREE.LineSegments(
+    new THREE.EdgesGeometry(box),
+    new THREE.LineBasicMaterial({ color: mixHex(PAL.ink, PAL.acc, 0.15), transparent: true,
+                                  opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false })
+  );
+  const core = new THREE.Mesh(box, new THREE.MeshBasicMaterial({
+    color: PAL.acc, transparent: true, opacity: 0.22,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  }));
+  g.add(edges, core);
+  g.position.set(0, 2.15, 0);
+  obj.add(g);
+  return { group: g, edges, core };
+}
+
+function spawnWorker(data, index){
+  const src = workerTemplate || baseWorkers[0];
+  if (!src) return null;
+  const clone = src.clone(true);
+  clone.visible = true;
+  clone.name = 'worker_' + index;
+  clone.traverse(o => { o.visible = true; });
+
+  // позиция: до 9 мест — авторская сетка, больше — равномерно по комнате
+  const g = state.grid, b = state.bounds;
+  const total = state.pending ? state.pending.length : (g.xs.length * g.zs.length);
+  let x, z;
+  if (total <= g.xs.length * g.zs.length && g.xs.length === 3){
+    const col = index % g.xs.length, row = Math.floor(index / g.xs.length);
+    x = g.xs[col];
+    z = g.zs[Math.min(row, g.zs.length - 1)];
+  } else {
+    const cols = total <= 12 ? 4 : 5;
+    const rows = Math.ceil(total / cols);
+    const col = index % cols, row = Math.floor(index / cols);
+    x = b.x0 + (b.x1 - b.x0) * (cols > 1 ? col/(cols-1) : 0.5);
+    z = b.z0 + (b.z1 - b.z0) * (rows > 1 ? row/(rows-1) : 0.5);
+  }
+  clone.position.set(x, state.baseY || 0, z);
+
+  const grp = clone.parent || clone;
+  scene.add(clone);
+
+  const fx = addScreenFX(clone);
+
+  // мягкий ключевой свет на фигуру со стороны зрителя: силуэт отрывается от пола
+  const face = new THREE.PointLight(0xd8ccff, 5.0, 4.0, 2);
+  face.position.set(-0.95, 2.05, 1.05);
+  clone.add(face);
+  const marker = addMarker(clone);
+  const cube = addCube(clone);
+
+  clone.userData.workerId = data.id;
+  clone.userData.status = data.status;
+  const rec = { ...data, index, obj:clone, ...fx, marker, cube, face,
+                base: { x, z, ry: clone.rotation.y } };
+  state.workers.push(rec);
+  return rec;
+}
+
+function clearWorkers(){
+  state.workers.forEach(w => { if (w.obj.parent) w.obj.parent.remove(w.obj); });
+  state.workers = [];
+  state.selected = null;
+  document.getElementById('card').style.display = 'none';
+}
+
+function setWorkers(list){
+  state.pending = list;
+  if (!workerTemplate) return;
+  clearWorkers();
+  list.forEach((d,i) => spawnWorker(d, i));
+  state.ringCenter = ringCenter();
+  applyRing();
+  renderList();
+  updateMetrics();
+  log(`workers set → ${list.length}`);
+}
+
+function demoWorkers(n){
+  const tasks = ['code review','refactor','tests','docs','research','build','migrate','profiling','release'];
+  const st = ['running','running','idle','error'];
+  return Array.from({length:n}, (_,i) => ({
+    id: 'worker_' + String(i+1).padStart(2,'0'),
+    label: tasks[i % tasks.length],
+    status: st[i % st.length],
+    eff: 58 + ((i*13) % 40)
+  }));
+}
+
+// ---------------------------------------------------------------- HUD
+const $ = (id) => document.getElementById(id);
+
+// ---------------------------------------------------------------- палитра
+// Схема строится из ТРЁХ цветов: base (тьма), ink (свет), acc (акцент).
+// Всё остальное (тени, линии, панели, свет мониторов, дизеринг) выводится из них.
+const PAL_KEY = 'office_palette_v3';
+const PAL = { bg:'#06081a', ink:'#c9b8ff', acc:'#7629d9' };
+
+function hex2rgb(h){
+  h = String(h || '').replace('#','');
+  if (h.length === 3) h = h.split('').map(c => c + c).join('');
+  return [parseInt(h.slice(0,2),16) || 0, parseInt(h.slice(2,4),16) || 0, parseInt(h.slice(4,6),16) || 0];
+}
+function mixHex(a, b, t){
+  const A = hex2rgb(a), B = hex2rgb(b);
+  return '#' + [0,1,2].map(i => Math.round(A[i]*(1-t) + B[i]*t).toString(16).padStart(2,'0')).join('');
+}
+function hexA(h, al){
+  const c = hex2rgb(h);
+  return `rgba(${c[0]},${c[1]},${c[2]},${al})`;
+}
+
+function applyPalette(p, save){
+  Object.assign(PAL, p || {});
+  const R = document.documentElement.style;
+  const dim  = mixHex(PAL.ink, PAL.bg, 0.44);
+  const hot  = mixHex(PAL.acc, PAL.ink, 0.50);
+  const cool = mixHex(PAL.acc, PAL.ink, 0.78);
+  R.setProperty('--bg', PAL.bg);
+  R.setProperty('--ink', PAL.ink);
+  R.setProperty('--ink-dim', dim);
+  R.setProperty('--violet', PAL.acc);
+  R.setProperty('--magenta', hot);
+  R.setProperty('--cyan', cool);
+  R.setProperty('--line', hexA(cool, 0.28));
+  R.setProperty('--panel', hexA(mixHex(PAL.bg, '#000000', 0.25), 0.64));
+  document.body.style.background = PAL.bg;
+
+  const u = compMat.uniforms;
+  const B = hex2rgb(PAL.bg).map(v => v/255);
+  const I = hex2rgb(PAL.ink).map(v => v/255);
+  const A = hex2rgb(PAL.acc).map(v => v/255);
+  u.uBg.value.set(B[0], B[1], B[2]);
+  u.uInk.value.set(I[0], I[1], I[2]);
+  u.uAcc.value.set(A[0], A[1], A[2]);
+
+  // свет мониторов, маркеры и кубики — в тон акцента
+  state.workers.forEach(w => {
+    if (w.light) w.light.color.setStyle(cool);
+    if (w.face) w.face.color.setStyle(mixHex(PAL.ink, PAL.acc, 0.25));
+    if (w.marker) w.marker.material.color.setStyle(PAL.ink);
+    if (w.cube){
+      w.cube.edges.material.color.setStyle(mixHex(PAL.ink, PAL.acc, 0.15));
+      w.cube.core.material.color.setStyle(PAL.acc);
+    }
+  });
+  try { SEL_BOX.material.color.setStyle(hot); } catch(e){}
+  try {
+    $('cBg').value = PAL.bg; $('cInk').value = PAL.ink; $('cAcc').value = PAL.acc;
+  } catch(e){}
+  if (save) try { localStorage.setItem(PAL_KEY, JSON.stringify(PAL)); } catch(e){}
+}
+
+function wirePalette(){
+  try {
+    const saved = JSON.parse(localStorage.getItem(PAL_KEY) || 'null');
+    if (saved && saved.bg && saved.ink && saved.acc) Object.assign(PAL, saved);
+  } catch(e){}
+  applyPalette(PAL, false);
+  [['cBg','bg'],['cInk','ink'],['cAcc','acc']].forEach(([id, key]) => {
+    const el = $(id);
+    if (!el) return;
+    el.value = PAL[key];
+    el.addEventListener('input', () => applyPalette({ [key]: el.value }, true));
+  });
+}
+
+// ---------------------------------------------------------------- режим и столы
+const RING = { from: 0, to: 0, t: 1, dur: 0.85 };
+
+function ringCenter(){
+  const ws = state.workers;
+  if (!ws.length) return null;
+  let x = 0, z = 0;
+  ws.forEach(w => { x += w.base.x; z += w.base.z; });
+  return { x: x/ws.length, z: z/ws.length };
+}
+
+function applyRing(){
+  const c = state.ringCenter;
+  if (!c) return;
+  const a = state.ringAngle, ca = Math.cos(a), sa = Math.sin(a);
+  state.workers.forEach(w => {
+    const dx = w.base.x - c.x, dz = w.base.z - c.z;
+    w.obj.position.x = c.x + dx*ca - dz*sa;
+    w.obj.position.z = c.z + dx*sa + dz*ca;
+    w.obj.rotation.y = w.base.ry + a;
+  });
+}
+
+function rotateDesks(){
+  RING.from = state.ringAngle;
+  RING.to = state.ringAngle - Math.PI/2;      // по часовой
+  RING.t = 0;
+  state.ringCenter = ringCenter();
+}
+
+// на сцену — не больше 12 столов: каждый воркер несёт 2 источника света,
+// и на 193 клонах forward-рендер (и шейдеры) умирают. В списке видно всех.
+const MAX_DESKS = 12;
+function fitStage(list){
+  if (list.length <= MAX_DESKS) return list;
+  return list.slice(-MAX_DESKS);
+}
+
+function poolOf(mode){
+  // без фида (демо/офлайн) пул один — то, что уже за столами
+  if (!state.live) return state.workers.map(w => ({ id:w.id, label:w.label, status:w.status, eff:w.eff,
+                                                    msgs:w.msgs, tools:w.tools, log:w.log }));
+  return (mode === 'all' ? state.poolAll : state.poolActive) || [];
+}
+
+function renderPool(){
+  const all = poolOf(state.mode);
+  state.poolLen = all.length;
+  const list = fitStage(all).map(w => ({ id:w.id, label:w.label, status:w.status, eff:w.eff,
+                                         msgs:w.msgs, tools:w.tools, log:w.log }));
+  state.sig = state.mode + '#' + list.map(w => w.id + '|' + (w.label || '')).join('~~');
+  setWorkers(list);
+  if (all.length > list.length) log(`на сцене ${list.length} из ${all.length} — показываю последних`);
+}
+
+function wireControls(){
+  const seg = $('wmode');
+  if (seg) seg.addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b || b.dataset.m === state.mode) return;
+    state.mode = b.dataset.m;
+    [...seg.children].forEach(x => x.classList.toggle('on', x === b));
+    state.sig = null;
+    renderPool();
+  });
+  const rot = $('rot');
+  if (rot) rot.addEventListener('click', rotateDesks);
+  const rst = $('cReset');
+  if (rst) rst.addEventListener('click', () => {
+    applyPalette({ bg:'#06081a', ink:'#c9b8ff', acc:'#7629d9' }, true);
+  });
+}
+
+function renderList(){
+  const el = $('list');
+  el.innerHTML = state.workers.map((w,i) => {
+    const on = state.selected && state.selected.index === i;
+    const st = String(w.status || '').toLowerCase();
+    const dot = st === 'running' ? '●' : st === 'idle' ? '◐' : '○';
+    const label = String(w.label || w.id).slice(0, 30);
+    return `<div class="row ${on?'on':''}" data-i="${i}">
+      <span class="wl"><b class="sd ${st}">${dot}</b>${escapeHtml(label)}</span>
+      <span>${w.eff || 0}%</span></div>`;
+  }).join('');
+  const shown = state.workers.length;
+  const total = state.poolLen || shown;
+  $('wcount').textContent = shown + (total > shown ? ' / ' + total : '');
+  $('wstate').textContent = (API || state.live) ? 'LINKED' : (state.workers.length ? 'ONLINE' : 'OFFLINE');
+}
+
+function updateMetrics(){
+  const n = state.workers.length || 1;
+  const eff = Math.round(state.workers.reduce((s,w)=>s+(w.eff||70),0)/n);
+  $('eff').textContent = eff + '%';
+  $('effbar').style.width = eff + '%';
+  $('mfocus').textContent = Math.min(99, eff+9) + '%';
+  $('mprod').textContent = Math.max(20, eff-6) + '%';
+  $('midle').textContent = Math.max(1, 100-eff-30) + '%';
+  renderSys();
+}
+
+function renderSys(){
+  const sys = state.live && state.live.sys;
+  if (!sys) {
+    if (!$('mcpu').textContent || $('mcpu').textContent === '—') $('mcpu').textContent = '—';
+    return;
+  }
+  const r = sys.ram || {};
+  $('mcpu').textContent = (sys.cpu != null ? sys.cpu : 0) + '%';
+  $('mram').textContent = `${(r.used_mb/1024).toFixed(1)} / ${(r.total_mb/1024).toFixed(0)} GB`;
+  $('rambar').style.width = Math.max(0, Math.min(100, r.pct || 0)) + '%';
+  $('procs').innerHTML = (sys.procs || []).map(p =>
+    `<div style="display:flex;justify-content:space-between;gap:8px">
+       <span>${escapeHtml(p.n)}</span><b>${Math.round(p.mb)} MB</b></div>`).join('');
+}
+
+const logLines = [];
+function log(text){
+  const t = new Date();
+  const stamp = [t.getHours(),t.getMinutes(),t.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');
+  logLines.unshift(`[${stamp}] ${text}`);
+  if (logLines.length > 6) logLines.pop();
+  $('log').innerHTML = logLines.map(l => `<div>${l}</div>`).join('');
+}
+
+function showPanel(kind, w){
+  $('eid').textContent = w ? w.id : '—';
+  $('estate').textContent = w ? String(w.status || '').toUpperCase() : '—';
+  $('eeff').textContent = w ? (w.eff || 70) + '%' : '—';
+  $('ectx').textContent = w ? ((3 + (w.index||0)*0.7).toFixed(1) + 'k') : '—';
+
+  const card = $('card');
+  const mainLog = (state.main && state.main.log) || state.mainLog || [];
+  if (kind === 'main'){
+    const m = state.main || {};
+    card.style.display = 'block';
+    $('cardname').textContent = 'MAIN AGENT';
+    $('ctask').textContent = (m.task || 'oversight').toString().toUpperCase().slice(0, 34);
+    $('cstate').textContent = (m.status || 'WATCHING').toString().toUpperCase();
+    $('ceff').textContent = m.eff != null ? m.eff + '%' : '—';
+    $('cmsgs').textContent = m.msgs != null ? m.msgs : '—';
+    $('ctools').textContent = m.tools != null ? m.tools : '—';
+    $('clog').innerHTML = logHtml(mainLog);
+  } else if (w){
+    $('cmsgs').textContent = w.msgs != null ? w.msgs : '—';
+    $('ctools').textContent = w.tools != null ? w.tools : '—';
+    $('clog').innerHTML = logHtml(w.log);
+    card.style.display = 'block';
+    $('cardname').textContent = w.id.toUpperCase();
+    $('ctask').textContent = (w.label || 'task').toUpperCase();
+    $('cstate').textContent = String(w.status || '').toUpperCase();
+    $('ceff').textContent = (w.eff || 70) + '%';
+  } else {
+    card.style.display = 'none';
+  }
+}
+
+// ---------------------------------------------------------------- selection
+const raycaster = new THREE.Raycaster();
+const pointer = new THREE.Vector2();
+const SEL_BOX = new THREE.BoxHelper(new THREE.Object3D(), 0xff45b8);
+SEL_BOX.material.depthTest = false;
+SEL_BOX.material.transparent = true;
+SEL_BOX.material.opacity = 0.85;
+SEL_BOX.visible = false;
+scene.add(SEL_BOX);
+
+function selectWorker(rec){
+  state.selected = { kind:'worker', index:rec.index };
+  SEL_BOX.setFromObject(rec.obj);
+  SEL_BOX.visible = true;
+  state.workers.forEach(w => {
+    w.marker.material.opacity = (w === rec) ? 1.0 : 0.55;
+    w.marker.material.color.set(w === rec ? 0xff9ce0 : 0xede6ff);
+    w.light.intensity = (w === rec) ? 4.5 : 2.2;
+  });
+  showPanel('worker', rec);
+  renderList();
+  log(`${rec.id} → selected`);
+  if (typeof state.selectCb === 'function')
+    state.selectCb('worker', { id:rec.id, label:rec.label, status:rec.status });
+}
+
+function selectMain(){
+  state.selected = { kind:'main' };
+  if (watcher){ SEL_BOX.setFromObject(watcher); SEL_BOX.visible = true; }
+  state.workers.forEach(w => { w.marker.material.opacity = 0.35; w.light.intensity = 2.0; });
+  showPanel('main', null);
+  renderList();
+  log('werker → main agent');
+  if (typeof state.selectCb === 'function') state.selectCb('main', { id:'watcher', label:'Главный агент' });
+}
+
+function deselect(){
+  state.selected = null;
+  SEL_BOX.visible = false;
+  state.workers.forEach(w => { w.marker.material.opacity = 0.9; w.marker.material.color.set(0xede6ff); w.light.intensity = 2.4; });
+  showPanel(null, null);
+  renderList();
+}
+
+controls.addEventListener('start', () => { controls._dragged = true; });
+
+renderer.domElement.addEventListener('pointerdown', (e) => {
+  pointer.x = (e.clientX / innerWidth) * 2 - 1;
+  pointer.y = -(e.clientY / innerHeight) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const objs = state.workers.map(w => w.obj).concat(watcher ? [watcher] : []);
+  const hit = raycaster.intersectObjects(objs, true)[0];
+  if (!hit) { deselect(); return; }
+  let o = hit.object, rec = null, isMain = false;
+  while (o && !rec && !isMain){
+    if (o === watcher) isMain = true;
+    const r = state.workers.find(w => w.obj === o);
+    if (r) rec = r;
+    o = o.parent;
+  }
+  if (isMain) selectMain();
+  else if (rec) selectWorker(rec);
+});
+
+addEventListener('keydown', (e) => { if (e.key === 'Escape') deselect(); });
+
+// ---------------------------------------------------------------- api
+const api = {
+  setWorkers: (list) => setWorkers(list || []),
+  on: (cb) => { state.selectCb = cb; },
+  select: (i) => { const w = state.workers[i]; if (w) selectWorker(w); },
+  selectMain: () => selectMain(),
+  state: () => state.live || null,
+  count: () => state.workers.length
+};
+window.HermesOffice = api;
+window.__dbg = { THREE, renderer, scene, camera, state, controls, compMat, PAL,
+                 info:() => ({ calls: renderer.info.render.calls,
+                               tris: renderer.info.render.triangles,
+                               size:[renderer.domElement.width, renderer.domElement.height],
+                               camPos: camera.position.toArray().map(v=>+v.toFixed(2)),
+                               target: controls.target.toArray().map(v=>+v.toFixed(2)),
+                               workers: state.workers.length,
+                               meshes: (()=>{let n=0; scene.traverse(o=>{if(o.isMesh&&o.visible)n++}); return n;})() }) };
+
+// ---------------------------------------------------------------- live state
+function logHtml(rows){
+  return (rows || []).map(l => `<div><b>${l.t || ''}</b> ${escapeHtml(l.text || '')}</div>`).join('')
+                  || '<div style="opacity:.5">— тихо —</div>';
+}
+function escapeHtml(t){
+  return String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+function applyState(j){
+  if (!j || !j.chat) return;
+  state.live = j;
+  const c = j.chat;
+  $('btitle').textContent = (c.title || 'чат без названия').toUpperCase();
+  const bits = [c.model, `${c.msgs ?? 0} MSG`, `${c.tools ?? 0} TOOLS`];
+  if (LIVE_BUSY === null) bits.push(c.busy ? '● LIVE' : '○ IDLE');
+  else bits.push(LIVE_BUSY ? '● LIVE' : '○ IDLE');
+  $('bsub').textContent = bits.filter(Boolean).join('  ·  ');
+  document.title = 'OFFICE · ' + (c.title || '');
+  $('wstate').textContent = 'LINKED';
+
+  state.poolActive = j.workers || [];
+  state.poolAll = j.history || j.workers || [];
+  state.poolLen = poolOf(state.mode).length;
+  const list = fitStage(poolOf(state.mode));
+  const sig = state.mode + '#' + list.map(w => w.id + '|' + (w.label || '')).join('~~');
+  if (sig !== state.sig){
+    state.sig = sig;
+    setWorkers(list.map(w => ({ id:w.id, label:w.label, status:w.status, eff:w.eff,
+                                msgs:w.msgs, tools:w.tools, log:w.log, tone:w.tone })));
+  } else {
+    state.workers.forEach((w, i) => {
+      const d = list[i]; if (!d) return;
+      Object.assign(w, { status:d.status, eff:d.eff, msgs:d.msgs, tools:d.tools, log:d.log, label:d.label });
+    });
+    renderList(); updateMetrics();
+  }
+  state.main = j.main || null;
+  renderSys();
+  if (state.selected) showPanel(state.selected.kind, state.workers[state.selected.index]);
+  state.lastLive = Date.now();
+}
+
+if (API){
+  const tick = async () => {
+    try {
+      const url = API + (LIVE_SID ? (API.includes('?') ? '&' : '?') + 'sid=' + encodeURIComponent(LIVE_SID) : '');
+      const r = await fetch(url, { cache:'no-store' });
+      const j = await r.json();
+      if (Array.isArray(j)) { if (!state.sig){ state.sig='array'; setWorkers(j); } }
+      else applyState(j);
+    } catch(e){
+      $('wstate').textContent = 'OFFLINE';
+      if (!state.lastLive || Date.now() - state.lastLive > 6000)
+        $('bsub').textContent = 'нет связи с hermes · сервер офиса не отвечает';
+    }
+  };
+  tick();
+  setInterval(tick, 2000);
+}
+
+// плагин Hermes присылает активный чат и признак «работает» без перезагрузки iframe
+addEventListener('message', (e) => {
+  const d = e.data || {};
+  if (d.type === 'sid' && d.value){ LIVE_SID = d.value; }
+  if (d.type === 'busy'){ LIVE_BUSY = !!d.value; if (state.live) applyState(state.live); }
+});
+
+if (Q.get('workers')) {
+  const n = Math.max(1, Math.min(30, +Q.get('workers')));
+  if (!Q.get('demo')) state.pending = demoWorkers(n);
+}
+
+// ---------------------------------------------------------------- loop
+const clock = new THREE.Clock();
+const sparkCtx = $('spark').getContext('2d');
+const sparkData = new Array(80).fill(0.3);
+
+function resize(){
+  const w = Math.round(innerWidth*LOW), h = Math.round(innerHeight*LOW);
+  renderer.setSize(w, h, false);
+  const needV = state.needV || FRUSTUM;
+  const aspect = innerWidth / innerHeight;
+  camera.left = -needV*aspect/2; camera.right = needV*aspect/2;
+  camera.top = needV/2; camera.bottom = -needV/2;
+  camera.updateProjectionMatrix();
+  rtScene.setSize(w,h);
+  rtBloomA.setSize(Math.max(1,w>>1), Math.max(1,h>>1));
+  rtBloomB.setSize(Math.max(1,w>>1), Math.max(1,h>>1));
+  compMat.uniforms.res.value.set(w,h);
+  blurMat.uniforms.res.value.set(w>>1, h>>1);
+}
+addEventListener('resize', () => { resize(); });
+resize();
+
+function drawSpark(){
+  const w = 240, h = 34;
+  sparkCtx.clearRect(0,0,w,h);
+  sparkCtx.strokeStyle = 'rgba(255,69,184,.85)';
+  sparkCtx.lineWidth = 1;
+  sparkCtx.beginPath();
+  sparkData.forEach((v,i) => {
+    const x = i/(sparkData.length-1)*w, y = h - v*h*0.9;
+    i ? sparkCtx.lineTo(x,y) : sparkCtx.moveTo(x,y);
+  });
+  sparkCtx.stroke();
+  sparkCtx.fillStyle = 'rgba(118,41,217,.28)';
+  sparkCtx.lineTo(w,h); sparkCtx.lineTo(0,h); sparkCtx.closePath(); sparkCtx.fill();
+}
+
+let acc = 0;
+function frame(){
+  requestAnimationFrame(frame);
+  const dt = clock.getDelta();
+  acc += dt;
+  const t = clock.elapsedTime;
+
+  // flicker per worker, out of phase
+  state.workers.forEach((w,i) => {
+    const ph = (w.index||0) * 1.7;
+    const n = 0.62 + 0.38*Math.sin(t*7.3 + ph) * Math.sin(t*2.1 + ph*2.0);
+    let v = n;
+    if (Math.random() < 0.004) v *= 0.35;               // stutter
+    w.light.intensity = (state.selected && state.selected.index === w.index ? 4.5 : 2.4) * Math.max(0.25, v);
+    w.quad.material.opacity = 0.55 + 0.4*Math.max(0.2, v);
+  });
+
+  // экраны всегда к камере
+  state.workers.forEach(w => { if (w.quad) w.quad.quaternion.copy(camera.quaternion); });
+
+  // marker billboard + slow tilt
+  state.workers.forEach(w => {
+    if (!w.marker) return;
+    w.marker.quaternion.copy(camera.quaternion);
+    w.marker.rotateZ(0.16*Math.sin(t*0.9 + (w.index||0)) + 0.12);
+  });
+
+  // кубики: пока агент работает — крутятся и мигают
+  state.workers.forEach(w => {
+    const cube = w.cube;
+    if (!cube) return;
+    const st = String(w.status || '').toLowerCase();
+    const running = st === 'running';
+    const busyish = running || st === 'idle';
+    cube.group.rotation.y += dt * (running ? 2.4 : 0.5);
+    cube.group.rotation.x += dt * (running ? 0.85 : 0.12);
+    const pulse = running ? (0.5 + 0.5 * Math.sin(t*6.4 + (w.index || 0)*1.3)) : 0;
+    const flick = (running && Math.random() < 0.02) ? 0.18 : 1;
+    cube.core.material.opacity  = (running ? 0.16 + 0.62*pulse : (busyish ? 0.12 : 0.06)) * flick;
+    cube.edges.material.opacity = (running ? 0.52 + 0.48*pulse : 0.30) * flick;
+    cube.group.scale.setScalar(1 + (running ? 0.13*pulse : 0));
+  });
+
+  // поворот столов по часовой (анимация на RING)
+  if (RING.t < 1){
+    RING.t = Math.min(1, RING.t + dt / RING.dur);
+    const k = RING.t < 0.5 ? 2*RING.t*RING.t : 1 - Math.pow(-2*RING.t + 2, 2)/2;
+    state.ringAngle = RING.from + (RING.to - RING.from) * k;
+  }
+  applyRing();
+
+  // selection box follows
+  if (state.selected && SEL_BOX.visible){
+    const rec = state.workers[state.selected.index];
+    if (state.selected.kind === 'worker' && rec) SEL_BOX.setFromObject(rec.obj);
+    else if (state.selected.kind === 'main' && watcher) SEL_BOX.setFromObject(watcher);
+  }
+
+  // worker card anchored to the selected worker
+  const card = $('card');
+  if (state.selected && state.selected.kind === 'worker' && card.style.display === 'block'){
+    const rec = state.workers[state.selected.index];
+    if (rec){
+      const v = new THREE.Vector3();
+      new THREE.Box3().setFromObject(rec.obj).getCenter(v);
+      v.y += 1.9;
+      v.project(camera);
+      const sx = (v.x*0.5+0.5)*innerWidth, sy = (-v.y*0.5+0.5)*innerHeight;
+      card.style.transform = `translate(${Math.round(sx - 93)}px, ${Math.round(sy - 96)}px)`;
+    }
+  }
+
+  drawSpark();
+
+  // metrics drift
+  acc += 0;
+  if ((t|0) !== state.lastSec){
+    state.lastSec = t|0;
+    const d = new Date();
+    $('clock').textContent = [d.getHours(),d.getMinutes(),d.getSeconds()].map(v=>String(v).padStart(2,'0')).join(':');
+    const sysCpu = state.live && state.live.sys ? state.live.sys.cpu / 100 : null;
+    sparkData.push(sysCpu != null ? Math.max(0.03, Math.min(1, sysCpu))
+                                  : 0.25 + Math.random()*0.65);
+    sparkData.shift();
+    renderSys();
+    if (Math.random() < 0.5 && state.workers.length){
+      const w = state.workers[(Math.random()*state.workers.length)|0];
+      log(`${w.id} → ${['typing…','reading docs…','running tests…','idle','focus'][(Math.random()*5)|0]}`);
+    }
+  }
+
+  controls.update();
+
+  if (Q.get('plain')){
+    renderer.setRenderTarget(null);
+    renderer.render(scene, camera);
+    return;
+  }
+
+  // ---- render + post
+  renderer.setRenderTarget(rtScene);
+  renderer.render(scene, camera);
+  renderer.setRenderTarget(null);
+
+  brightMat.uniforms.tDiffuse.value = rtScene.texture;
+  drawPassTo(brightMat, rtBloomA);
+
+  blurMat.uniforms.tDiffuse.value = rtBloomA.texture;
+  blurMat.uniforms.dir.value.set(1,0);
+  drawPassTo(blurMat, rtBloomB);
+
+  blurMat.uniforms.tDiffuse.value = rtBloomB.texture;
+  blurMat.uniforms.dir.value.set(0,1);
+  drawPassTo(blurMat, rtBloomA);
+
+  compMat.uniforms.tScene.value = rtScene.texture;
+  compMat.uniforms.tBloom.value = rtBloomA.texture;
+  compMat.uniforms.time.value = t;
+  compMat.uniforms.glitch.value = 1.0;
+
+  const q = quadScene.children.includes(compQuad) ? null : null;
+  quadScene.clear();
+  quadScene.add(compQuad);
+  renderer.setRenderTarget(null);
+  renderer.render(quadScene, quadCam);
+}
+
+function drawPassTo(mat, target){
+  quadScene.clear();
+  const m = new THREE.Mesh(quadGeo, mat);
+  quadScene.add(m);
+  renderer.setRenderTarget(target);
+  renderer.render(quadScene, quadCam);
+  renderer.setRenderTarget(null);
+  quadScene.clear();
+}
+
+// сброс сцены-квада перед первым кадром
+quadScene.clear();
+wirePalette();
+wireControls();
+frame();
+
+setTimeout(() => { if (!window.__ready) log('waiting for GLB…'); }, 4000);
+</script>
+</body>
+</html>

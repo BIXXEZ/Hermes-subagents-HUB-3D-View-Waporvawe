@@ -1,0 +1,14 @@
+* text=auto eol=lf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+*.vbs text eol=crlf
+
+# не трогать байты: base64-модель внутри HTML и сам GLB
+web/office.html -text
+assets/*.glb binary -text
+docs/*.png binary -text
+
+# крупные бинарники: пока лежат прямо в git (16 МБ), LFS не обязателен.
+# Если репозиторий вырастет — раскомментируйте и `git lfs track`:
+# *.glb filter=lfs diff=lfs merge=lfs -text
+# web/office.html filter=lfs diff=lfs merge=lfs -text

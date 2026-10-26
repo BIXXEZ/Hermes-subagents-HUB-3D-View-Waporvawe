@@ -1,0 +1,16 @@
+# сборка (генерируется build/build_solo.py)
+build/vendor/
+build/utils/
+build/src/main.js
+build/app.bundle.js
+build/office-512.glb
+node_modules/
+__pycache__/
+*.pyc
+
+# локальные логи и мусор
+*.log
+feed.log
+.DS_Store
+Thumbs.db
+*.bak

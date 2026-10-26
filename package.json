@@ -1,0 +1,14 @@
+{
+  "name": "hermes-office-viewer",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Build pipeline for the office_hermes viewer (three.js single-file bundle)",
+  "scripts": {
+    "build": "python build/build_solo.py"
+  },
+  "devDependencies": {
+    "three": "0.160.0",
+    "esbuild": "0.28.2",
+    "@gltf-transform/cli": "4.5.1"
+  }
+}

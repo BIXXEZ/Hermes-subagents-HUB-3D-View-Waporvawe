@@ -26,7 +26,7 @@ Hermes desktop                        ваш компьютер
 ## Установка (Windows, один шаг)
 
 ```powershell
-git clone https://github.com/<ваш-логин>/hermes-office.git
+git clone https://github.com/BIXXEZ/Hermes-subagents-HUB-3D-View-Waporvawe
 cd hermes-office
 powershell -ExecutionPolicy Bypass -File scripts\install.ps1
 ```

@@ -13,8 +13,10 @@ param(
 
 $ErrorActionPreference = 'Continue'
 
+# только свои процессы — по пути к каталогу ЭТОГО home; чужие фиды не трогаем
+$liveDir = Join-Path $HermesHome 'office-live'
 Get-CimInstance Win32_Process -ErrorAction SilentlyContinue |
-  Where-Object { $_.CommandLine -like '*office_live.py*' } |
+  Where-Object { $_.Name -match '^python' -and $_.CommandLine -like '*office_live.py*' -and $_.CommandLine -like "*$liveDir*" } |
   ForEach-Object { Write-Host "останавливаю фид (pid $($_.ProcessId))"; Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
 
 $vbs = Join-Path $StartupDir 'hermes-office.vbs'

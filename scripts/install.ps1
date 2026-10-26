@@ -83,10 +83,11 @@ Copy-Item (Join-Path $repo 'web\office.html')       (Join-Path $liveDir 'office.
 Copy-Item (Join-Path $repo 'README.md')             (Join-Path $liveDir 'README.md')      -Force -ErrorAction SilentlyContinue
 
 # plugin.js с нужным портом
-$plugSrc = Get-Content (Join-Path $repo 'plugin.js') -Raw
+# ReadAllText с явным UTF8: Get-Content в PS 5.1 читает UTF-8 без BOM как cp1251 и портит кириллицу
+$plugSrc = [System.IO.File]::ReadAllText((Join-Path $repo 'plugin.js'), [System.Text.Encoding]::UTF8)
 $plugOut = $plugSrc -replace "http://127\.0\.0\.1:\d+", "http://127.0.0.1:$Port"
 $plugDest = Join-Path $plugDir 'plugin.js'
-if ((Test-Path $plugDest) -and ((Get-Content $plugDest -Raw) -ne $plugOut)) {
+if ((Test-Path $plugDest) -and ([System.IO.File]::ReadAllText($plugDest, [System.Text.Encoding]::UTF8) -ne $plugOut)) {
   Copy-Item $plugDest "$plugDest.bak" -Force
 }
 $utf8 = New-Object System.Text.UTF8Encoding($false)

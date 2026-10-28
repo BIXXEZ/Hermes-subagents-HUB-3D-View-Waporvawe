@@ -75,6 +75,276 @@
   #ctl button.act:hover{background:color-mix(in srgb,var(--magenta) 20%,transparent)}
   #procs div{font-size:9px;line-height:1.35;color:var(--ink-dim)}
   #procs b{color:var(--cyan);font-weight:400}
+
+
+  /* --- DRAGGABLE PANELS & WINDOW MANAGEMENT --- */
+  .hud.panel {
+    pointer-events: auto !important;
+    user-select: none;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.6), 0 0 0 1px rgba(114,213,255,0.25) inset;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  }
+  .hud.panel.dragging {
+    transition: none !important;
+    opacity: 0.92;
+    box-shadow: 0 8px 30px rgba(255,69,184,0.35), 0 0 0 1px var(--magenta) inset !important;
+    z-index: 10000 !important;
+  }
+  .hud.panel .panel-content {
+    user-select: text;
+  }
+  .panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: grab;
+    user-select: none;
+    border-bottom: 1px solid rgba(114,213,255,0.22);
+    padding-bottom: 4px;
+    margin-bottom: 6px;
+  }
+  .panel-head:active {
+    cursor: grabbing;
+  }
+  .panel-head h2 {
+    margin: 0 !important;
+    border: 0 !important;
+    padding: 0 !important;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .panel-head h2::before {
+    content: '::';
+    color: var(--magenta);
+    font-size: 8px;
+    opacity: 0.75;
+  }
+  .panel-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .btn-win {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-dim);
+    font-family: inherit;
+    font-size: 9px;
+    line-height: 1;
+    width: 17px;
+    height: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+  .btn-win:hover {
+    background: color-mix(in srgb, var(--magenta) 25%, transparent);
+    border-color: var(--magenta);
+    color: var(--ink);
+    box-shadow: 0 0 6px rgba(255,69,184,0.4);
+  }
+
+  /* --- CUBE DOCK FOR MINIMIZED WINDOWS --- */
+  #cube-dock {
+    position: fixed;
+    bottom: 14px;
+    left: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    z-index: 99999;
+    pointer-events: auto;
+  }
+  .dock-cube {
+    position: relative;
+    width: 34px;
+    height: 34px;
+    background: rgba(9,12,28,0.85);
+    border: 1px solid var(--cyan);
+    box-shadow: 0 0 12px rgba(114,213,255,0.4), inset 0 0 8px rgba(255,69,184,0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    backdrop-filter: blur(4px);
+    transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+    animation: cubePulse 2.8s ease-in-out infinite;
+  }
+  .dock-cube:hover {
+    transform: translateY(-4px) scale(1.12);
+    border-color: var(--magenta);
+    box-shadow: 0 0 18px rgba(255,69,184,0.7), inset 0 0 10px rgba(114,213,255,0.5);
+  }
+  .dock-cube .cube-glyph {
+    font-size: 15px;
+    line-height: 1;
+    color: var(--cyan);
+    text-shadow: 0 0 6px var(--cyan);
+    transition: all 0.2s;
+  }
+  .dock-cube:hover .cube-glyph {
+    color: var(--magenta);
+    text-shadow: 0 0 8px var(--magenta);
+  }
+  .dock-cube .cube-tip {
+    position: absolute;
+    bottom: 42px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--panel);
+    border: 1px solid var(--cyan);
+    padding: 3px 8px;
+    font-size: 8.5px;
+    letter-spacing: 0.16em;
+    color: var(--ink);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.7);
+  }
+  .dock-cube:hover .cube-tip {
+    opacity: 1;
+  }
+  @keyframes cubePulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(114,213,255,0.3), inset 0 0 4px rgba(255,69,184,0.2); }
+    50% { box-shadow: 0 0 16px rgba(255,69,184,0.55), inset 0 0 8px rgba(114,213,255,0.45); }
+  }
+
+  /* --- VAPORWAVE ANALYTICS WINDOW --- */
+  #win-analytics {
+    position: fixed;
+    top: 48px;
+    left: calc(50% - 370px);
+    width: 740px;
+    max-width: 95vw;
+    max-height: 84vh;
+    z-index: 9999;
+    display: none;
+    flex-direction: column;
+    padding: 10px 14px;
+    border-color: rgba(114,213,255,0.45);
+    background: rgba(9,12,28,0.88);
+  }
+  #win-analytics.open {
+    display: flex;
+  }
+  #win-analytics .analytics-body {
+    overflow-y: auto;
+    overflow-x: hidden;
+    max-height: calc(84vh - 44px);
+    padding-right: 4px;
+    user-select: text;
+  }
+  #win-analytics .analytics-body::-webkit-scrollbar {
+    width: 4px;
+  }
+  #win-analytics .analytics-body::-webkit-scrollbar-thumb {
+    background: var(--line);
+  }
+  .an-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .an-card {
+    border: 1px solid var(--line);
+    padding: 7px 9px;
+    background: rgba(6,8,26,0.55);
+    position: relative;
+    overflow: hidden;
+  }
+  .an-card::after {
+    content: '';
+    position: absolute;
+    top: 0; right: 0;
+    width: 12px; height: 12px;
+    border-top: 1px solid var(--magenta);
+    border-right: 1px solid var(--magenta);
+  }
+  .an-card-label {
+    font-size: 7.5px;
+    letter-spacing: 0.22em;
+    color: var(--ink-dim);
+    margin-bottom: 3px;
+    text-transform: uppercase;
+  }
+  .an-card-val {
+    font-size: 13px;
+    color: var(--cyan);
+    font-weight: 500;
+    letter-spacing: 0.08em;
+  }
+  .an-card-sub {
+    font-size: 8px;
+    color: var(--ink-dim);
+    margin-top: 2px;
+  }
+  .an-chart-box {
+    border: 1px solid var(--line);
+    padding: 8px 10px;
+    background: rgba(6,8,26,0.55);
+    margin-bottom: 12px;
+  }
+  .an-chart-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 8.5px;
+    letter-spacing: 0.2em;
+    color: var(--cyan);
+    margin-bottom: 8px;
+    padding-bottom: 4px;
+    border-bottom: 1px solid rgba(114,213,255,0.18);
+  }
+  .an-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+  }
+  .an-table th {
+    text-align: left;
+    padding: 5px 6px;
+    color: var(--ink-dim);
+    border-bottom: 1px solid var(--line);
+    font-weight: normal;
+    letter-spacing: 0.16em;
+    font-size: 8px;
+  }
+  .an-table td {
+    padding: 5px 6px;
+    border-bottom: 1px solid rgba(114,213,255,0.08);
+  }
+  .an-table tr:hover td {
+    background: color-mix(in srgb, var(--magenta) 12%, transparent);
+  }
+  .an-badge {
+    display: inline-block;
+    padding: 1px 5px;
+    font-size: 7.5px;
+    border: 1px solid var(--line);
+    color: var(--cyan);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .an-bar-outer {
+    height: 4px;
+    background: rgba(114,213,255,0.15);
+    width: 100%;
+    margin-top: 3px;
+    overflow: hidden;
+  }
+  .an-bar-inner {
+    height: 100%;
+    background: linear-gradient(90deg, var(--cyan), var(--magenta));
+  }
+
 </style>
 </head>
 <body>
@@ -3934,6 +4204,439 @@ void main() {
  * Copyright 2010-2023 Three.js Authors
  * SPDX-License-Identifier: MIT
  */
+</script>
+
+
+<!-- ANALYTICS MODAL / WINDOW -->
+<div class="hud panel" id="win-analytics" data-title="MODEL ANALYTICS · TOKEN BURN">
+  <div class="panel-head">
+    <h2>ANALYTICS // TOKEN DYNAMICS</h2>
+    <div class="panel-actions">
+      <button class="btn-win btn-refresh" id="btn-an-refresh" title="Обновить аналитику">&#x21bb;</button>
+      <button class="btn-win btn-min" title="Свернуть в кубик">&#x2212;</button>
+      <button class="btn-win btn-close" id="btn-an-close" title="Закрыть">&#x2715;</button>
+    </div>
+  </div>
+  <div class="analytics-body">
+    <!-- 4 METRIC CARDS -->
+    <div class="an-grid">
+      <div class="an-card">
+        <div class="an-card-label">TOTAL TOKENS BURNED</div>
+        <div class="an-card-val" id="an-tot-tokens">&mdash;</div>
+        <div class="an-card-sub" id="an-sub-tokens">INP + OUTP + CACHE</div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-label">INPUT / OUTPUT</div>
+        <div class="an-card-val" id="an-tot-io">&mdash;</div>
+        <div class="an-card-sub" id="an-sub-io">ratio / balance</div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-label">CACHE READ EFFICIENCY</div>
+        <div class="an-card-val" id="an-tot-cache">&mdash;</div>
+        <div class="an-card-sub" id="an-sub-cache">tokens read from cache</div>
+      </div>
+      <div class="an-card">
+        <div class="an-card-label">TOTAL ESTIMATED SPEND</div>
+        <div class="an-card-val" id="an-tot-cost">&mdash;</div>
+        <div class="an-card-sub" id="an-sub-calls">&mdash; API CALLS</div>
+      </div>
+    </div>
+
+    <!-- DAILY DYNAMICS TIMELINE CHART -->
+    <div class="an-chart-box">
+      <div class="an-chart-head">
+        <span>DAILY TOKEN DYNAMICS &middot; 30-DAY HISTOGRAM</span>
+        <span style="font-size:7.5px;color:var(--ink-dim)">CYAN: INP &middot; MAGENTA: OUTP &middot; PURPLE: CACHE</span>
+      </div>
+      <canvas id="an-chart-daily" width="700" height="110" style="width:100%;height:110px;display:block;"></canvas>
+    </div>
+
+    <!-- TOP MODELS BY CONSUMPTION / COST -->
+    <div class="an-chart-box">
+      <div class="an-chart-head">
+        <span>TOP MODELS &middot; TOKENS &amp; COST BREAKDOWN</span>
+        <span style="font-size:7.5px;color:var(--ink-dim)">SORTED BY TOTAL TRAFFIC</span>
+      </div>
+      <div style="overflow-x:auto;">
+        <table class="an-table">
+          <thead>
+            <tr>
+              <th>MODEL</th>
+              <th>PROVIDER</th>
+              <th>CALLS</th>
+              <th>INPUT</th>
+              <th>OUTPUT</th>
+              <th>CACHE READ</th>
+              <th>REASONING</th>
+              <th>EST COST</th>
+              <th style="width:90px;">SHARE</th>
+            </tr>
+          </thead>
+          <tbody id="an-tbody-models">
+            <tr><td colspan="9" style="text-align:center;padding:12px;color:var(--ink-dim);">LOADING METRICS&hellip;</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- CUBE DOCK -->
+<div id="cube-dock"></div>
+
+<script>
+
+// --- DRAGGABLE WINDOWS, MINIMIZATION TO CUBE DOCK & ANALYTICS MODULE ---
+(function() {
+  var dock = document.getElementById('cube-dock');
+  var highestZ = 1000;
+
+  function makeDraggableAndMinimizable(panel, titleText, isMainAnalytics) {
+    if (!panel || panel._winSetup) return;
+    panel._winSetup = true;
+
+    // Ensure header
+    var head = panel.querySelector('.panel-head');
+    if (!head) {
+      head = document.createElement('div');
+      head.className = 'panel-head';
+      var existingH2 = panel.querySelector('h2');
+      var h2 = existingH2 || document.createElement('h2');
+      if (!existingH2) {
+        h2.textContent = titleText || 'PANEL';
+      }
+      head.appendChild(h2);
+
+      var actions = document.createElement('div');
+      actions.className = 'panel-actions';
+
+      var btnMin = document.createElement('button');
+      btnMin.className = 'btn-win btn-min';
+      btnMin.title = 'Свернуть в кубик';
+      btnMin.innerHTML = '&#x2212;';
+      actions.appendChild(btnMin);
+
+      head.appendChild(actions);
+      panel.insertBefore(head, panel.firstChild);
+    }
+
+    var minBtn = head.querySelector('.btn-min');
+    var glyph = titleText.indexOf('ANALYTICS') !== -1 ? '&#x25C7;' :
+                titleText.indexOf('HERMES') !== -1 ? '&#x25C6;' :
+                titleText.indexOf('CAM') !== -1 ? '&#x25A3;' :
+                titleText.indexOf('ACTIVITY') !== -1 ? '&#x25B3;' :
+                titleText.indexOf('EMPLOYEE') !== -1 ? '&#x25CE;' : '&#x25A0;';
+
+    // Minimization logic
+    if (minBtn) {
+      minBtn.addEventListener('click', function(e) {
+        e.stopPropagation();
+        minimizePanel(panel, titleText, glyph);
+      });
+    }
+
+    // Bring to front on click
+    panel.addEventListener('mousedown', function() {
+      highestZ += 2;
+      panel.style.zIndex = highestZ;
+    });
+
+    // Dragging logic
+    var isDragging = false;
+    var startX, startY, origLeft, origTop;
+
+    head.addEventListener('mousedown', function(e) {
+      if (e.target.closest('.panel-actions') || e.target.closest('button') || e.target.closest('input')) return;
+      isDragging = true;
+      panel.classList.add('dragging');
+      highestZ += 5;
+      panel.style.zIndex = highestZ;
+
+      var rect = panel.getBoundingClientRect();
+      origLeft = rect.left;
+      origTop = rect.top;
+      startX = e.clientX;
+      startY = e.clientY;
+
+      // Lock position from relative classes to fixed px
+      panel.style.position = 'fixed';
+      panel.style.left = origLeft + 'px';
+      panel.style.top = origTop + 'px';
+      panel.style.right = 'auto';
+      panel.style.bottom = 'auto';
+      panel.style.transform = 'none';
+
+      function onMouseMove(moveEv) {
+        if (!isDragging) return;
+        var dx = moveEv.clientX - startX;
+        var dy = moveEv.clientY - startY;
+        var newX = Math.max(0, Math.min(window.innerWidth - panel.offsetWidth, origLeft + dx));
+        var newY = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, origTop + dy));
+        panel.style.left = newX + 'px';
+        panel.style.top = newY + 'px';
+      }
+
+      function onMouseUp() {
+        if (isDragging) {
+          isDragging = false;
+          panel.classList.remove('dragging');
+        }
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      }
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
+  }
+
+  function minimizePanel(panel, label, glyph) {
+    panel.style.display = 'none';
+    panel.classList.remove('open');
+
+    var cube = document.createElement('div');
+    cube.className = 'dock-cube';
+    cube.innerHTML = '<span class="cube-glyph">' + glyph + '</span><span class="cube-tip">' + label + '</span>';
+
+    cube.addEventListener('click', function() {
+      panel.style.display = panel.id === 'win-analytics' ? 'flex' : 'block';
+      if (panel.id === 'win-analytics') panel.classList.add('open');
+      highestZ += 2;
+      panel.style.zIndex = highestZ;
+      if (cube.parentNode) cube.parentNode.removeChild(cube);
+    });
+
+    dock.appendChild(cube);
+  }
+
+  // Hook all existing panels
+  var panelsToSetup = [
+    { sel: '.hud.panel.tl', title: 'HERMES AI' },
+    { sel: '.hud.panel.tr', title: 'LIVE OFFICE CAM 01' },
+    { sel: '.hud.panel.bl', title: 'ACTIVITY (ALL)' },
+    { sel: '.hud.panel.br', title: 'EMPLOYEE VIEW' },
+    { sel: '#win-analytics', title: 'ANALYTICS // TOKENS & SPEND' }
+  ];
+
+  panelsToSetup.forEach(function(item) {
+    var el = document.querySelector(item.sel);
+    if (el) {
+      makeDraggableAndMinimizable(el, item.title);
+    }
+  });
+
+  // Analytics Button in Toolbar (#ctl)
+  var ctl = document.getElementById('ctl');
+  if (ctl) {
+    var anBtn = document.createElement('button');
+    anBtn.className = 'act';
+    anBtn.id = 'btn-open-analytics';
+    anBtn.title = 'Аналитика расхода токенов и моделей';
+    anBtn.style.color = 'var(--cyan)';
+    anBtn.style.borderColor = 'rgba(114,213,255,0.4)';
+    anBtn.innerHTML = '&#x25C7; АНАЛИТИКА';
+    ctl.appendChild(anBtn);
+
+    var winAn = document.getElementById('win-analytics');
+    anBtn.addEventListener('click', function() {
+      if (winAn) {
+        if (winAn.classList.contains('open') && winAn.style.display !== 'none') {
+          winAn.style.display = 'none';
+          winAn.classList.remove('open');
+        } else {
+          winAn.style.display = 'flex';
+          winAn.classList.add('open');
+          highestZ += 5;
+          winAn.style.zIndex = highestZ;
+          loadAnalyticsData();
+        }
+      }
+    });
+  }
+
+  // Close & Refresh buttons on Analytics window
+  var btnCloseAn = document.getElementById('btn-an-close');
+  if (btnCloseAn) {
+    btnCloseAn.addEventListener('click', function() {
+      var win = document.getElementById('win-analytics');
+      if (win) {
+        win.style.display = 'none';
+        win.classList.remove('open');
+      }
+    });
+  }
+  var btnRefAn = document.getElementById('btn-an-refresh');
+  if (btnRefAn) {
+    btnRefAn.addEventListener('click', function() {
+      loadAnalyticsData();
+    });
+  }
+
+  // Helper formatting numbers
+  function fmtNum(n) {
+    if (n >= 1e9) return (n / 1e9).toFixed(2) + ' B';
+    if (n >= 1e6) return (n / 1e6).toFixed(2) + ' M';
+    if (n >= 1e3) return (n / 1e3).toFixed(1) + ' K';
+    return n.toLocaleString();
+  }
+
+  // Load /analytics from server and render
+  function loadAnalyticsData() {
+    fetch('/analytics', { cache: 'no-store' })
+      .then(function(r) { return r.json(); })
+      .then(function(data) {
+        renderAnalytics(data);
+      })
+      .catch(function(err) {
+        console.warn('Analytics fetch error:', err);
+      });
+  }
+
+  function renderAnalytics(data) {
+    if (!data || !data.totals) return;
+    var t = data.totals;
+
+    var totalTokens = (t.inp || 0) + (t.outp || 0) + (t.cache_r || 0);
+    document.getElementById('an-tot-tokens').textContent = fmtNum(totalTokens);
+    document.getElementById('an-sub-tokens').textContent = fmtNum(t.inp) + ' IN · ' + fmtNum(t.outp) + ' OUT · ' + fmtNum(t.cache_r) + ' CACHE';
+
+    document.getElementById('an-tot-io').textContent = fmtNum(t.inp) + ' / ' + fmtNum(t.outp);
+    var ratio = t.outp > 0 ? (t.inp / t.outp).toFixed(1) + ':1' : '—';
+    document.getElementById('an-sub-io').textContent = 'RATIO: ' + ratio + ' (INP:OUTP)';
+
+    var cachePct = (totalTokens > 0) ? ((t.cache_r / totalTokens) * 100).toFixed(1) : 0;
+    document.getElementById('an-tot-cache').textContent = fmtNum(t.cache_r) + ' (' + cachePct + '%)';
+    document.getElementById('an-sub-cache').textContent = 'REASONING: ' + fmtNum(t.reasoning || 0);
+
+    document.getElementById('an-tot-cost').textContent = '$' + (t.cost || 0).toFixed(2);
+    document.getElementById('an-sub-calls').textContent = (t.calls || 0).toLocaleString() + ' API CALLS · ' + (data.models.length || 0) + ' MODELS';
+
+    // Render Table of Top Models
+    var tbody = document.getElementById('an-tbody-models');
+    if (tbody && data.models) {
+      tbody.innerHTML = '';
+      var maxVol = 0;
+      data.models.forEach(function(m) {
+        var v = (m.inp || 0) + (m.outp || 0) + (m.cache_r || 0);
+        if (v > maxVol) maxVol = v;
+      });
+
+      data.models.forEach(function(m) {
+        var tr = document.createElement('tr');
+        var vol = (m.inp || 0) + (m.outp || 0) + (m.cache_r || 0);
+        var pct = maxVol > 0 ? Math.round((vol / maxVol) * 100) : 0;
+        var costStr = m.cost > 0 ? '$' + m.cost.toFixed(2) : '$0.00';
+
+        tr.innerHTML =
+          '<td><b style="color:var(--cyan);font-weight:500;">' + m.model + '</b></td>' +
+          '<td><span class="an-badge">' + m.provider + '</span></td>' +
+          '<td>' + (m.calls || 0).toLocaleString() + '</td>' +
+          '<td>' + fmtNum(m.inp || 0) + '</td>' +
+          '<td>' + fmtNum(m.outp || 0) + '</td>' +
+          '<td>' + fmtNum(m.cache_r || 0) + '</td>' +
+          '<td>' + (m.reasoning ? fmtNum(m.reasoning) : '—') + '</td>' +
+          '<td style="color:' + (m.cost > 0 ? 'var(--magenta)' : 'var(--ink-dim)') + ';font-weight:' + (m.cost > 0 ? 'bold' : 'normal') + ';">' + costStr + '</td>' +
+          '<td>' +
+            '<div style="font-size:7.5px;color:var(--ink-dim);display:flex;justify-content:space-between;"><span>' + fmtNum(vol) + '</span><span>' + pct + '%</span></div>' +
+            '<div class="an-bar-outer"><div class="an-bar-inner" style="width:' + Math.max(3, pct) + '%;"></div></div>' +
+          '</td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Render Daily Histogram
+    renderDailyChart(data.daily || []);
+  }
+
+  function renderDailyChart(daily) {
+    var cvs = document.getElementById('an-chart-daily');
+    if (!cvs) return;
+    var ctx = cvs.getContext('2d');
+    var w = cvs.width;
+    var h = cvs.height;
+    ctx.clearRect(0, 0, w, h);
+
+    if (!daily || daily.length === 0) {
+      ctx.fillStyle = '#8d7fc4';
+      ctx.font = '10px monospace';
+      ctx.fillText('NO DAILY DATA AVAILABLE', 20, h / 2);
+      return;
+    }
+
+    // Use last 28 days max
+    var slice = daily.slice(-28);
+    var maxDaily = 0;
+    slice.forEach(function(d) {
+      var sum = (d.inp || 0) + (d.outp || 0) + (d.cache_r || 0);
+      if (sum > maxDaily) maxDaily = sum;
+    });
+    if (maxDaily === 0) maxDaily = 1;
+
+    // Grid lines
+    ctx.strokeStyle = 'rgba(114,213,255,0.12)';
+    ctx.lineWidth = 1;
+    for (var g = 1; g <= 3; g++) {
+      var gy = Math.round(h - (h * 0.75 * (g / 3)) - 18);
+      ctx.beginPath();
+      ctx.moveTo(0, gy);
+      ctx.lineTo(w, gy);
+      ctx.stroke();
+    }
+
+    var barWidth = Math.max(4, Math.floor((w - 20) / slice.length) - 4);
+    var startX = 10;
+    var bottomY = h - 20;
+
+    slice.forEach(function(d, i) {
+      var x = startX + i * (barWidth + 4);
+      var inp = d.inp || 0;
+      var outp = d.outp || 0;
+      var cache = d.cache_r || 0;
+      var tot = inp + outp + cache;
+
+      var totalH = Math.round((tot / maxDaily) * (h - 35));
+      var inpH = tot > 0 ? Math.round((inp / tot) * totalH) : 0;
+      var outpH = tot > 0 ? Math.round((outp / tot) * totalH) : 0;
+      var cacheH = totalH - inpH - outpH;
+
+      var currY = bottomY;
+
+      // Draw Cache (dark violet)
+      if (cacheH > 0) {
+        ctx.fillStyle = '#7629d9';
+        ctx.fillRect(x, currY - cacheH, barWidth, cacheH);
+        currY -= cacheH;
+      }
+
+      // Draw Input (cyan)
+      if (inpH > 0) {
+        ctx.fillStyle = '#72d5ff';
+        ctx.fillRect(x, currY - inpH, barWidth, inpH);
+        currY -= inpH;
+      }
+
+      // Draw Output (magenta)
+      if (outpH > 0) {
+        ctx.fillStyle = '#ff45b8';
+        ctx.fillRect(x, currY - outpH, barWidth, outpH);
+        currY -= outpH;
+      }
+
+      // Date label every few bars
+      if (slice.length <= 14 || i % 3 === 0 || i === slice.length - 1) {
+        ctx.fillStyle = '#8d7fc4';
+        ctx.font = '7.5px monospace';
+        ctx.textAlign = 'center';
+        var label = d.day ? d.day.slice(5) : '';
+        ctx.fillText(label, x + barWidth / 2, h - 5);
+      }
+    });
+  }
+
+  // Auto load analytics initially
+  setTimeout(loadAnalyticsData, 1000);
+})();
+
 </script>
 </body>
 </html>

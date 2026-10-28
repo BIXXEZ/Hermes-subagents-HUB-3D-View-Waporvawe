@@ -382,6 +382,90 @@ def build_state(sid):
         conn.close()
 
 
+def build_analytics():
+    """Аналитика использования моделей, токенов, кеша и трат из session_model_usage."""
+    conn = db()
+    try:
+        # Общие итоги
+        tot = conn.execute("""
+            SELECT COUNT(DISTINCT model),
+                   COALESCE(SUM(api_call_count), 0),
+                   COALESCE(SUM(input_tokens), 0),
+                   COALESCE(SUM(output_tokens), 0),
+                   COALESCE(SUM(cache_read_tokens), 0),
+                   COALESCE(SUM(cache_write_tokens), 0),
+                   COALESCE(SUM(reasoning_tokens), 0),
+                   COALESCE(ROUND(SUM(CASE WHEN estimated_cost_usd > 0 THEN estimated_cost_usd ELSE 0 END), 4), 0.0)
+            FROM session_model_usage
+        """).fetchone()
+
+        # Топ моделей по суммарному объёму токенов (input + output + cache_read)
+        top_models = []
+        q_models = """
+            SELECT model,
+                   COALESCE(NULLIF(billing_provider, ''), 'direct') as provider,
+                   COALESCE(SUM(api_call_count), 0) as calls,
+                   COALESCE(SUM(input_tokens), 0) as inp,
+                   COALESCE(SUM(output_tokens), 0) as outp,
+                   COALESCE(SUM(cache_read_tokens), 0) as cache_r,
+                   COALESCE(SUM(cache_write_tokens), 0) as cache_w,
+                   COALESCE(SUM(reasoning_tokens), 0) as reasoning,
+                   COALESCE(ROUND(SUM(CASE WHEN estimated_cost_usd > 0 THEN estimated_cost_usd ELSE 0 END), 4), 0.0) as cost_usd,
+                   MIN(first_seen) as first_seen,
+                   MAX(last_seen) as last_seen
+            FROM session_model_usage
+            GROUP BY model
+            ORDER BY (SUM(input_tokens) + SUM(output_tokens) + SUM(cache_read_tokens)) DESC
+        """
+        for r in conn.execute(q_models).fetchall():
+            top_models.append({
+                "model": r[0], "provider": r[1], "calls": int(r[2] or 0),
+                "inp": int(r[3] or 0), "outp": int(r[4] or 0),
+                "cache_r": int(r[5] or 0), "cache_w": int(r[6] or 0),
+                "reasoning": int(r[7] or 0), "cost": float(r[8] or 0.0),
+                "first_seen": r[9], "last_seen": r[10]
+            })
+
+        # История по дням
+        daily = []
+        q_daily = """
+            SELECT date(last_seen, 'unixepoch', 'localtime') as day,
+                   COALESCE(SUM(input_tokens), 0) as inp,
+                   COALESCE(SUM(output_tokens), 0) as outp,
+                   COALESCE(SUM(cache_read_tokens), 0) as cache_r,
+                   COALESCE(SUM(reasoning_tokens), 0) as reasoning,
+                   COALESCE(SUM(api_call_count), 0) as calls,
+                   COALESCE(ROUND(SUM(CASE WHEN estimated_cost_usd > 0 THEN estimated_cost_usd ELSE 0 END), 4), 0.0) as cost
+            FROM session_model_usage
+            WHERE last_seen IS NOT NULL
+            GROUP BY day
+            ORDER BY day ASC
+        """
+        for r in conn.execute(q_daily).fetchall():
+            daily.append({
+                "day": r[0], "inp": int(r[1] or 0), "outp": int(r[2] or 0),
+                "cache_r": int(r[3] or 0), "reasoning": int(r[4] or 0),
+                "calls": int(r[5] or 0), "cost": float(r[6] or 0.0)
+            })
+
+        return {
+            "totals": {
+                "models_count": int(tot[0] or 0),
+                "calls": int(tot[1] or 0),
+                "inp": int(tot[2] or 0),
+                "outp": int(tot[3] or 0),
+                "cache_r": int(tot[4] or 0),
+                "cache_w": int(tot[5] or 0),
+                "reasoning": int(tot[6] or 0),
+                "cost": float(tot[7] or 0.0)
+            },
+            "models": top_models,
+            "daily": daily
+        }
+    finally:
+        conn.close()
+
+
 def viewer_path():
     """office.html: рядом с сервером, в ./web или в ../web (репозиторий)."""
     for p in (os.path.join(HERE, "office.html"),
@@ -438,6 +522,14 @@ class Handler(BaseHTTPRequestHandler):
                                   "text/plain; charset=utf-8")
             with open(path, "rb") as f:
                 return self._send(200, f.read(), "text/html; charset=utf-8")
+        if u.path in ("/analytics.html", "/tokens.html", "/models.html", "/stats.html"):
+            for p in (os.path.join(HERE, "analytics.html"),
+                      os.path.join(HERE, "web", "analytics.html"),
+                      os.path.join(os.path.dirname(HERE), "web", "analytics.html")):
+                if os.path.exists(p):
+                    with open(p, "rb") as f:
+                        return self._send(200, f.read(), "text/html; charset=utf-8")
+            return self._send(404, "analytics.html не найден", "text/plain; charset=utf-8")
         if u.path == "/beacon":
             qs = parse_qs(u.query)
             stage = (qs.get("stage") or ["?"])[0]
@@ -460,6 +552,16 @@ class Handler(BaseHTTPRequestHandler):
                 payload = json.dumps(build_state(sid), ensure_ascii=False)
             except FileNotFoundError as e:
                 return self._send(500, json.dumps({"error": str(e), "home": HOME}, ensure_ascii=False))
+            except Exception as e:
+                return self._send(500, json.dumps({"error": str(e)}, ensure_ascii=False))
+            _cache.update({"t": time.time(), "key": key, "payload": payload})
+            return self._send(200, payload)
+        if u.path == "/analytics":
+            key = "__analytics__"
+            if _cache["key"] == key and time.time() - _cache["t"] < 3.0 and _cache["payload"]:
+                return self._send(200, _cache["payload"])
+            try:
+                payload = json.dumps(build_analytics(), ensure_ascii=False)
             except Exception as e:
                 return self._send(500, json.dumps({"error": str(e)}, ensure_ascii=False))
             _cache.update({"t": time.time(), "key": key, "payload": payload})
